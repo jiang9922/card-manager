@@ -600,7 +600,8 @@ func queryCard(c *gin.Context) {
 	if remoteResp.Code == 1 && remoteResp.Data.Code != "" {
 		code := extractVerificationCode(remoteResp.Data.Code)
 		expired := convertTimeFormat(remoteResp.Data.ExpiredDate)
-		_, err = db.Exec("UPDATE cards SET card_code=?, card_expired_date=?, card_note=?, card_check=1 WHERE card_no=?", code, expired, note, cardNo)
+		// 使用 query_token 或纯卡号更新数据库
+		_, err = db.Exec("UPDATE cards SET card_code=?, card_expired_date=?, card_note=?, card_check=1 WHERE query_token = ? OR card_no = ?", code, expired, note, cardNo, cardNo)
 		if err != nil {
 			log.Printf("更新数据库失败: %v", err)
 		}
@@ -608,7 +609,7 @@ func queryCard(c *gin.Context) {
 			"card_no": cardNo, "card_code": code, "card_expired_date": expired, "card_note": note,
 		}})
 	} else {
-		_, err = db.Exec("UPDATE cards SET card_note=?, card_check=1 WHERE card_no=?", note, cardNo)
+		_, err = db.Exec("UPDATE cards SET card_note=?, card_check=1 WHERE query_token = ? OR card_no = ?", note, cardNo, cardNo)
 		if err != nil {
 			log.Printf("标记已查失败: %v", err)
 		}
