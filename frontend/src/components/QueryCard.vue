@@ -37,7 +37,8 @@ import { useToast } from '../composables/useToast'
 
 const toast = useToast()
 // 展示数据与状态
-const cardNo = ref('')
+const cardNo = ref('')           // 显示的卡号（纯卡号）
+const queryToken = ref('')       // 完整的 query_token（用于后端查询）
 const code = ref('')
 const codeTime = ref('')
 const cardLink = ref('')
@@ -53,14 +54,18 @@ onMounted(() => {
   if (enc) {
     try { 
       const decoded = atob(enc)
-      // 保留完整的 query_token（包含随机后缀）用于后端查询
-      cardNo.value = decoded
+      // 保存完整 query_token 用于查询
+      queryToken.value = decoded
+      // 显示纯卡号（去掉后缀）
+      cardNo.value = decoded.split('_')[0] || decoded
     } catch {}
   } else {
     const plain = params.get('card') || params.get('card_no')
     if (plain) {
-      // 保留完整的 query_token（包含随机后缀）用于后端查询
-      cardNo.value = plain
+      // 保存完整 query_token 用于查询
+      queryToken.value = plain
+      // 显示纯卡号（去掉后缀）
+      cardNo.value = plain.split('_')[0] || plain
     }
   }
 })
@@ -74,9 +79,12 @@ async function query() {
   code.value = ''
   codeTime.value = ''
 
+  // 如果用户手动输入了卡号，需要构建 query_token
+  const tokenToQuery = queryToken.value || cardNo.value
+
   try {
-    // 查询页调用后端接口，后端根据卡号从数据库中查找链接
-    const url = `/api/cards/query?card=${encodeURIComponent(cardNo.value)}`
+    // 查询页调用后端接口，使用完整的 query_token 查询
+    const url = `/api/cards/query?card=${encodeURIComponent(tokenToQuery)}`
     const res = await fetch(url)
     const json = await res.json()
     if (json.code !== 0 || !json.data) {

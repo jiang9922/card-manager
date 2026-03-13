@@ -605,8 +605,13 @@ func queryCard(c *gin.Context) {
 		if err != nil {
 			log.Printf("更新数据库失败: %v", err)
 		}
+		// 提取纯卡号用于返回
+		pureCardNo := cardNo
+		if idx := strings.Index(cardNo, "_"); idx > 0 {
+			pureCardNo = cardNo[:idx]
+		}
 		c.JSON(200, Response{Code: 0, Message: "success", Data: map[string]interface{}{
-			"card_no": cardNo, "card_code": code, "card_expired_date": expired, "card_note": note,
+			"card_no": pureCardNo, "card_code": code, "card_expired_date": expired, "card_note": note,
 		}})
 	} else {
 		_, err = db.Exec("UPDATE cards SET card_note=?, card_check=1 WHERE query_token = ? OR card_no = ?", note, cardNo, cardNo)
