@@ -98,6 +98,12 @@
       <p>格式：每行一个 卡号----链接</p>
       <textarea v-model="input" placeholder="888888----http://localhost:8081/api12828798dss
 888888----http://localhost:8081/api871282"></textarea>
+      <div class="add-options">
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="allowDuplicates" />
+          <span>允许重复添加（同一卡号可生成多个查询链接）</span>
+        </label>
+      </div>
       <div class="validate">
         <span class="ok">有效 {{ validCount }} 条</span>
         <span class="bad" v-if="errors.length">无效 {{ errors.length }} 条</span>
@@ -116,9 +122,9 @@
 <script setup lang="ts">
 // 管理表格逻辑说明：
 // - 列表加载：`GET /api/cards`，支持日期与状态筛选，分页展示
-// - 批量添加：`POST /api/cards`，按行解析“卡号----链接”
+// - 批量添加：`POST /api/cards`，按行解析"卡号----链接"
 // - 批量删除：`DELETE /api/admin/batch-delete` 按 id 删除
-// - 批量导出（前端生成）：导出为“卡号----查询页链接(card_enc)”文本
+// - 批量导出（前端生成）：导出为"卡号----查询页链接(card_enc)"文本
 // - 选中项支持全选，分页切换时清空已选，以避免误删
 import { ref, onMounted, computed, watch } from 'vue'
 import { useToast } from '../composables/useToast'
@@ -142,6 +148,7 @@ const input = ref('')
 const adding = ref(false)
 const msg = ref('')
 const msgType = ref('')
+const allowDuplicates = ref(true) // 默认允许重复添加
 // 选中项与校验错误统计
 const selected = ref<number[]>([])
 const errors = ref<string[]>([])
@@ -181,6 +188,8 @@ async function load(page: number = 1) {
     if (json.code === 0 && json.data) {
       cards.value = Array.isArray(json.data.cards) ? json.data.cards : []
       displayedCards.value = cards.value
+      // 应用当前筛选
+      applyFilters()
       pagination.value = json.data.pagination || {
         page: 1,
         page_size: pageSize.value,
@@ -210,8 +219,31 @@ function changePageSize() {
 }
 
 function applyFilters() {
-  // 后端已筛选，只需刷新数据
-  load(1)
+  // 前端筛选：根据卡号搜索、日期、状态筛选
+  let result = cards.value
+  
+  // 卡号搜索
+  if (filters.value.cardNo.trim()) {
+    const keyword = filters.value.cardNo.toLowerCase()
+    result = result.filter(c => c.card_no.toLowerCase().includes(keyword))
+  }
+  
+  // 状态筛选
+  if (filters.value.status === 'checked') {
+    result = result.filter(c => c.card_check)
+  } else if (filters.value.status === 'unchecked') {
+    result = result.filter(c => !c.card_check)
+  }
+  
+  // 日期筛选
+  if (filters.value.date) {
+    result = result.filter(c => {
+      const cardDate = c.created_at.split('T')[0]
+      return cardDate === filters.value.date
+    })
+  }
+  
+  displayedCards.value = result
 }
 
 function clearFilters() {
@@ -219,8 +251,8 @@ function clearFilters() {
   filters.value.cardNo = ''
   filters.value.date = ''
   filters.value.status = ''
-  // 重新加载数据
-  load(1)
+  // 恢复显示所有数据
+  displayedCards.value = cards.value
 }
 
 function goToPage(page: number) {
@@ -255,140 +287,95 @@ function confirmDelete() {
   }
 }
 
-// function exportSelected() {
-//   // 前端导出：生成 “卡号 空格 查询页链接” 文本并下载
-//   if (selected.value.length === 0) return
-  
-//   try {
-//     // 获取选中的卡片数据
-//     const selectedCards = cards.value.filter(card => selected.value.includes(card.id))
-    
-//     // 生成导出内容
-//     const origin = import.meta.env.VITE_EXPORT_ORIGIN || 'http://8.138.84.103'
-//     const lines = selectedCards.map(card => {
-//       const encodedCardNo = encCard(card.card_no)
-//       const linkParam = encUrl(card.card_link)
-//       return `${card.card_no} ${origin}/query?card_enc=${encodedCardNo}&link_enc=${linkParam}`
-//     })
-    
-//     const content = lines.join('\n')
-    
-//     // 创建并下载文件
-//     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
-//     const url = window.URL.createObjectURL(blob)
-//     const a = document.createElement('a')
-//     a.href = url
-//     a.download = `cards_export_${new Date().toISOString().slice(0, 19).replace(/:/g, '')}.txt`
-//     document.body.appendChild(a)
-//     a.click()
-//     document.body.removeChild(a)
-//     window.URL.revokeObjectURL(url)
-    
-//     toast('导出成功', 'success')
-//   } catch {
-//     toast('导出失败', 'error')
-//   }
-// }
 function exportSelected() {
-  // 前端导出：生成 “卡号 空格 查询页链接” 文本并下载
+  // 前端导出：生成 "卡号 空格 查询页链接" 文本并下载
   if (selected.value.length === 0) return
   
-  try {
-    // 获取选中的卡片数据
-    const selectedCards = cards.value.filter(card => selected.value.includes(card.id))
-    
-    // 生成导出内容（只包含卡号，不包含链接参数）
-    const origin = import.meta.env.VITE_EXPORT_ORIGIN || 'http://8.138.84.103'
-    const lines = selectedCards.map(card => {
-      // 只导出卡号参数，不导出链接参数
-      return `${card.card_no} ${origin}/query?card=${card.card_no}`
-    })
-    
-    const content = lines.join('\n')
-    
-    // 创建并下载文件
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `cards_export_${new Date().toISOString().slice(0, 19).replace(/:/g, '')}.txt`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    window.URL.revokeObjectURL(url)
-    
-    toast('导出成功', 'success')
-  } catch {
-    toast('导出失败', 'error')
-  }
+  // 根据选中 id 从 cards 查找对应数据
+  const selectedCards = cards.value.filter((c: any) => selected.value.includes(c.id))
+  
+  // 生成导出文本：卡号----查询页链接
+  const lines = selectedCards.map((c: any) => {
+    const queryUrl = c.query_url || `${window.location.origin}/query?card=${encodeURIComponent(c.card_no)}`
+    return `${c.card_no} [验证码查询](${queryUrl})`
+  })
+  
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `cards_export_${new Date().toISOString().slice(0,10)}.txt`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
-async function add() {
-  // 批量添加：校验文本后提交到后端
-  const text = input.value.trim()
-  if (!text) return toast('请输入内容', 'error')
-  validate()
-  if (errors.value.length) return toast('存在格式错误，请修正后再提交', 'error')
+// 输入校验：实时解析输入文本，统计有效/无效行
+watch(input, () => {
+  const lines = input.value.split('\n')
+  errors.value = []
+  let count = 0
+  lines.forEach((line, idx) => {
+    line = line.trim()
+    if (!line) return
+    const parts = line.split('----')
+    // 格式校验：必须恰好两部分，卡号非空，链接符合 http 开头
+    if (parts.length !== 2 || !parts[0].trim() || !parts[1].trim().startsWith('http')) {
+      errors.value.push(`第${idx + 1}行格式错误`)
+    } else {
+      count++
+    }
+  })
+  validCount.value = count
+})
 
+async function add() {
+  // 批量添加：前端校验后 POST 到后端
+  if (validCount.value === 0) return toast('请输入有效卡密', 'error')
   adding.value = true
+  msg.value = ''
   try {
     const res = await fetch('/api/cards', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text })
+      body: JSON.stringify({ 
+        text: input.value,
+        allow_duplicates: allowDuplicates.value
+      })
     })
     const json = await res.json()
-    if (json.code === 0) {
-      input.value = ''
-      toast(json.message || '添加成功！', 'success')
-      // 添加成功后回到第一页并重新加载
-      load(1)
-    } else {
-      toast(json.message, 'error')
-    }
-  } catch {
-    toast('网络错误', 'error')
+    if (json.code !== 0) throw new Error(json.message)
+    msg.value = json.message || `成功添加 ${json.data?.length || 0} 条`
+    msgType.value = 'success'
+    input.value = ''
+    validCount.value = 0
+    errors.value = []
+    // 刷新列表，回到第一页
+    load(1)
+  } catch (e: any) {
+    msg.value = e.message || '添加失败'
+    msgType.value = 'error'
   } finally {
     adding.value = false
   }
 }
 
-function validate() {
-  // 文本校验：每行需满足 “数字卡号 + 有效 URL”，并去重
-  const errs: string[] = []
-  let ok = 0
-  const seen = new Set<string>()
-  for (const raw of input.value.split('\n')) {
-    const line = raw.trim()
-    if (!line) continue
-    const parts = line.split('----').map(s => s.trim())
-    if (parts.length !== 2) { errs.push(`格式错误: ${line}`); continue }
-    const [no, link] = parts
-    // 修复TypeScript类型错误，确保no和link不为undefined
-    if (!no || !link) { errs.push(`格式错误: ${line}`); continue }
-    if (!/^\d+$/.test(no)) { errs.push(`卡号需为数字: ${no}`); continue }
-    try { new URL(link) } catch { errs.push(`链接无效: ${link}`); continue }
-    if (seen.has(no)) { errs.push(`重复卡号: ${no}`); continue }
-    seen.add(no)
-    ok++
-  }
-  errors.value = errs
-  validCount.value = ok
+function truncate(s: string, len: number) {
+  // 截断长字符串并加省略号
+  return s.length > len ? s.slice(0, len) + '...' : s
 }
 
-watch(input, validate)
-
-function truncate(str: string, n: number) {
-  return str.length > n ? str.slice(0, n - 3) + '...' : str
+function formatDate(s: string) {
+  // 显示日期（YYYY-MM-DD），异常时返回原字符串
+  const d = new Date(s)
+  if (isNaN(d.getTime())) return s
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 }
 
-function encCard(no: string) {
-  // 生成可分享的查询链接参数：base64(encodeURIComponent(card_no))
-  try { return btoa(encodeURIComponent(no)) } catch { return '' }
-}
-
-function encUrl(u: string) {
-  try { return btoa(u) } catch { return '' }
+function formatTime(s: string) {
+  // 显示时间（HH:MM），异常时返回原字符串
+  const d = new Date(s)
+  if (isNaN(d.getTime())) return s
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
 }
 
 // 全选/取消全选 - 始终只操作当前一页（displayedCards）
@@ -409,50 +396,21 @@ function toggleSelectAll() {
   }
 }
 
-function formatDate(s: string) {
-  // 显示日期（YYYY-MM-DD），异常时返回原字符串
-  const d = new Date(s)
-  if (isNaN(d.getTime())) return s
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
-function formatTime(s: string) {
-  // 显示时间（HH:mm:ss），异常时为空
-  const d = new Date(s)
-  if (isNaN(d.getTime())) return ''
-  const hh = String(d.getHours()).padStart(2, '0')
-  const mm = String(d.getMinutes()).padStart(2, '0')
-  const ss = String(d.getSeconds()).padStart(2, '0')
-  return `${hh}:${mm}:${ss}`
+function encUrl(u: string) {
+  try { return btoa(u) } catch { return '' }
 }
 </script>
 
 <style scoped>
-.admin { background:#fff; padding:24px; border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,.08); }
-.toolbar { 
-  margin-bottom: 16px; 
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-}
-.toolbar button { 
-  padding: 8px 16px; 
-  margin-right: 10px; 
-  border: none; 
-  border-radius: 6px; 
-  cursor: pointer;
-}
-.toolbar button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.btn-del { background:#e74c3c; color:#fff; }
-.btn-del:hover:not(:disabled) { background:#c0392b; }
-.btn-export { background:#3498db; color:#fff; }
+.admin { background:#fff; padding:20px; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.08); }
+
+/* 工具栏 */
+.toolbar { display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; align-items:center; }
+.btn-del { background:#dc3545; color:#fff; border:none; padding:8px 16px; border-radius:8px; font-size:14px; }
+.btn-del:hover:not(:disabled) { background:#c82333; }
+.btn-del:disabled { background:#aaa; cursor:not-allowed; }
+
+.btn-export { background:#2980b9; color:#fff; border:none; padding:8px 16px; border-radius:8px; font-size:14px; }
 .btn-export:hover:not(:disabled) { background:#2980b9; }
 
 /* 分页大小控制样式 */
@@ -468,7 +426,7 @@ function formatTime(s: string) {
   color: #333;
 }
 
-.page-size-control select, .page-size-control input {
+.page-size-control input, .page-size-control select {
   padding: 6px 10px;
   border: 1px solid #ddd;
   border-radius: 4px;
@@ -480,22 +438,18 @@ function formatTime(s: string) {
   text-align: center;
 }
 
-.page-size-control span {
-  color: #666;
-}
-
 /* 筛选样式 */
 .filter-section {
   margin-bottom: 20px;
   padding: 15px;
-  background-color: #f8f9fa;
+  background: #f8f9fa;
   border-radius: 8px;
 }
 
 .filter-row {
   display: flex;
-  flex-wrap: wrap;
   gap: 15px;
+  flex-wrap: wrap;
   align-items: center;
 }
 
@@ -507,11 +461,12 @@ function formatTime(s: string) {
 
 .filter-item label {
   font-weight: 500;
-  color: #333;
-  white-space: nowrap;
+  color: #555;
+  font-size: 14px;
 }
 
-.filter-item input, .filter-item select {
+.filter-item input,
+.filter-item select {
   padding: 6px 10px;
   border: 1px solid #ddd;
   border-radius: 4px;
@@ -519,12 +474,11 @@ function formatTime(s: string) {
 }
 
 .btn-clear {
-  padding: 6px 12px;
   background: #6c757d;
   color: #fff;
   border: none;
+  padding: 6px 12px;
   border-radius: 4px;
-  cursor: pointer;
   font-size: 14px;
 }
 
@@ -532,55 +486,72 @@ function formatTime(s: string) {
   background: #5a6268;
 }
 
-table { width:100%; border-collapse:collapse; margin-bottom:30px; }
-th, td { padding:14px; text-align:left; border-bottom:1px solid #eee; }
-th { background:#4CAF50; color:#fff; }
-.link { color:#0066cc; max-width:200px; display:inline-block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.btn-del-table { background:#e74c3c; color:#fff; border:none; padding:6px 12px; border-radius:6px; }
-.btn-del-table:hover { background:#c0392b; }
-.time-cell { display:flex; flex-direction:column; }
-.time-cell .date { font-weight:600; color:#333; }
-.time-cell .time { color:#888; font-size:12px; }
-.admin input[type="checkbox"] { width:16px; height:16px; }
-.select-all { display:flex; align-items:center; gap:6px; }
-.query-link { margin-left:8px; font-size:12px; color:#007bff; }
-.add-section h3 { margin:20px 0 10px; color:#333; }
-textarea { width:100%; height:120px; padding:12px; border:1px solid #ddd; border-radius:8px; margin:10px 0; resize:vertical; }
-.validate { display:block; margin:6px 0 10px; }
-.validate .ok { color:#27ae60; margin-right:10px; }
-.validate .bad { color:#e74c3c; }
-.validate ul { margin:6px 0 0 0; padding-left:18px; color:#e74c3c; }
-.btn-add { background:#27ae60; color:#fff; padding:10px 20px; border:none; border-radius:8px; }
-.btn-add:disabled { background:#95a5a6; }
+/* 表格 */
+table { width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px; }
+th, td { padding:12px; border-bottom:1px solid #eee; text-align:left; vertical-align:middle; }
+th { background:#f8f9fa; font-weight:600; color:#555; }
+tr:hover { background:#f8f9fa; }
 
-/* 分页样式 */
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}
+.select-all { display:flex; align-items:center; gap:6px; cursor:pointer; }
+.query-link { margin-left:8px; color:#007bff; font-size:12px; text-decoration:none; }
+.query-link:hover { text-decoration:underline; }
+.link { color:#007bff; text-decoration:none; }
+.link:hover { text-decoration:underline; }
 
+.time-cell { display:flex; flex-direction:column; gap:2px; font-size:13px; }
+.time-cell .date { color:#333; }
+.time-cell .time { color:#999; font-size:12px; }
+
+/* 分页 */
+.pagination { display:flex; justify-content:center; align-items:center; gap:10px; margin-top:20px; }
 .pagination button {
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  background: #fff;
+  padding:8px 14px; border:1px solid #ddd; background:#fff; border-radius:6px; font-size:14px;
+}
+.pagination button:hover:not(:disabled) { background:#f0f0f0; }
+.pagination button:disabled { opacity:0.5; cursor:not-allowed; }
+.page-info { font-size:14px; color:#666; white-space:nowrap; }
+
+/* 添加区域 */
+.add-section { margin-top:30px; padding:20px; background:#f8f9fa; border-radius:12px; }
+.add-section h3 { margin-bottom:12px; color:#333; font-size:18px; }
+.add-section p { margin-bottom:10px; color:#666; font-size:14px; }
+.add-section textarea {
+  width:100%; height:120px; padding:12px; border:1px solid #ddd; border-radius:8px; font-size:14px;
+  font-family:monospace; resize:vertical;
+}
+
+.add-options {
+  margin: 12px 0;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   cursor: pointer;
-  border-radius: 4px;
   font-size: 14px;
+  color: #555;
 }
 
-.pagination button:disabled {
-  background: #f5f5f5;
-  cursor: not-allowed;
-  color: #999;
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
 }
 
-.pagination button:not(:disabled):hover {
-  background: #f0f0f0;
+.validate { margin:12px 0; font-size:14px; }
+.validate .ok { color:#28a745; font-weight:500; }
+.validate .bad { color:#dc3545; margin-left:12px; }
+.validate ul { margin:8px 0 0 20px; color:#dc3545; font-size:13px; }
+
+.btn-add {
+  background:#28a745; color:#fff; border:none; padding:10px 20px; border-radius:8px; font-size:15px;
 }
+.btn-add:hover:not(:disabled) { background:#218838; }
+.btn-add:disabled { background:#aaa; cursor:not-allowed; }
+
+.msg-success { color:#28a745; margin-top:10px; }
+.msg-error { color:#dc3545; margin-top:10px; }
 
 .page-info {
   font-size: 14px;

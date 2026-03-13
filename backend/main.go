@@ -321,15 +321,16 @@ func getLiveCodes(c *gin.Context) {
 }
 
 // 批量添加卡密（按行解析）
-// 请求体：{ text:"卡号----链接\n卡号----链接" }
+// 请求体：{ text:"卡号----链接\n卡号----链接", allow_duplicates: true }
 // 处理：逐行解析出 card_no、card_link；为每条生成本系统 `query_url`；
 //
-//	以 INSERT OR REPLACE 写入，便于覆盖更新。
+//	以 INSERT 写入，allow_duplicates 控制是否允许重复卡号
 //
 // 返回：成功写入的卡密简要信息（含 query_url）
 func addCard(c *gin.Context) {
 	var req struct {
-		Text string `json:"text" binding:"required"`
+		Text            string `json:"text" binding:"required"`
+		AllowDuplicates bool   `json:"allow_duplicates"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, Response{Code: -1, Message: "请求格式错误"})
@@ -363,6 +364,7 @@ func addCard(c *gin.Context) {
 		queryToken := fmt.Sprintf("%s_%s", card.CardNo, randomSuffix)
 		queryURL := fmt.Sprintf("%s/query?card=%s", baseURL, url.QueryEscape(queryToken))
 		
+		if !req.AllowDuplicates && existingCards[card.CardNo] { continue }
 		_, err := db.Exec(
 			"INSERT INTO cards (card_no, card_link, phone, query_url, query_token, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))",
 			card.CardNo, card.CardLink, card.Phone, queryURL, queryToken,
