@@ -566,23 +566,13 @@ func queryCard(c *gin.Context) {
 		cardLink = linkPlain
 	}
 	if cardLink == "" {
-		// 使用 query_token 字段匹配查询参数
+		// 使用 query_token 字段精确匹配查询参数
 		log.Printf("Query debug - searching for query_token: %s", cardNo)
 		err := db.QueryRow("SELECT card_link FROM cards WHERE query_token = ?", cardNo).Scan(&cardLink)
 		if err != nil {
 			log.Printf("Query debug - query_token not found: %v", err)
-			// 兼容旧数据，尝试用纯卡号查询
-			pureCardNo := cardNo
-			if idx := strings.Index(cardNo, "_"); idx > 0 {
-				pureCardNo = cardNo[:idx]
-			}
-			log.Printf("Query debug - trying pure card_no: %s", pureCardNo)
-			err = db.QueryRow("SELECT card_link FROM cards WHERE card_no = ?", pureCardNo).Scan(&cardLink)
-			if err != nil {
-				log.Printf("Query debug - card_no not found: %v", err)
-				c.JSON(404, Response{Code: -1, Message: "卡号不存在"})
-				return
-			}
+			c.JSON(404, Response{Code: -1, Message: "卡号不存在"})
+			return
 		}
 	}
 
