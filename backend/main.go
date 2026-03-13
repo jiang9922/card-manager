@@ -78,6 +78,7 @@ type Card struct {
 	Phone           *string `json:"phone"`
 	Remark          *string `json:"remark"`
 	QueryURL        *string `json:"query_url"`
+	QueryToken      *string `json:"query_token"`
 	CreatedAt       string  `json:"created_at"`
 	CardCode        *string `json:"card_code"`
 	CardExpiredDate *string `json:"card_expired_date"`
@@ -222,7 +223,7 @@ func getAllCards(c *gin.Context) {
 	}
 
 	// 查询当前页数据
-	query := "SELECT id, card_no, card_link, phone, query_url, created_at, card_code, card_expired_date, card_note, card_check FROM cards " +
+	query := "SELECT id, card_no, card_link, phone, remark, query_url, query_token, created_at, card_code, card_expired_date, card_note, card_check FROM cards " +
 		whereClause + " ORDER BY created_at DESC LIMIT ? OFFSET ?"
 	dataArgs := append(args, pageSize, offset)
 	rows, err := db.Query(query, dataArgs...)
@@ -235,8 +236,8 @@ func getAllCards(c *gin.Context) {
 	cards := []Card{}
 	for rows.Next() {
 		var card Card
-		var queryURL, code, expired, note, phone sql.NullString
-		err := rows.Scan(&card.ID, &card.CardNo, &card.CardLink, &phone, &queryURL, &card.CreatedAt, &code, &expired, &note, &card.CardCheck)
+		var queryURL, queryToken, code, expired, note, phone, remark sql.NullString
+		err := rows.Scan(&card.ID, &card.CardNo, &card.CardLink, &phone, &remark, &queryURL, &queryToken, &card.CreatedAt, &code, &expired, &note, &card.CardCheck)
 		if err != nil {
 			log.Printf("扫描失败: %v", err)
 			continue
@@ -244,8 +245,14 @@ func getAllCards(c *gin.Context) {
 		if queryURL.Valid {
 			card.QueryURL = &queryURL.String
 		}
+		if queryToken.Valid {
+			card.QueryToken = &queryToken.String
+		}
 		if phone.Valid {
 			card.Phone = &phone.String
+		}
+		if remark.Valid {
+			card.Remark = &remark.String
 		}
 		if code.Valid {
 			card.CardCode = &code.String
