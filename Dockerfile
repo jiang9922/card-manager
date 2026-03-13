@@ -11,7 +11,7 @@ FROM golang:1.22-alpine AS backend-builder
 RUN apk add --no-cache gcc musl-dev sqlite-dev
 WORKDIR /app/backend
 # 缓存破坏 - 强制重新构建
-ARG CACHE_BUST=3
+ARG CACHE_BUST=4
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 COPY backend/ ./
