@@ -108,6 +108,10 @@
           <span>允许重复添加（同一卡号可生成多个查询链接）</span>
         </label>
       </div>
+      <div class="add-remark">
+        <label>批量备注（可选）：</label>
+        <input type="text" v-model="batchRemark" placeholder="输入备注，将同步到所有本次添加的卡密" />
+      </div>
       <div class="validate">
         <span class="ok">有效 {{ validCount }} 条</span>
         <span class="bad" v-if="errors.length">无效 {{ errors.length }} 条</span>
@@ -153,6 +157,7 @@ const adding = ref(false)
 const msg = ref('')
 const msgType = ref('')
 const allowDuplicates = ref(true) // 默认允许重复添加
+const batchRemark = ref('') // 批量备注
 // 选中项与校验错误统计
 const selected = ref<number[]>([])
 const errors = ref<string[]>([])
@@ -344,7 +349,8 @@ async function add() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         text: input.value,
-        allow_duplicates: allowDuplicates.value
+        allow_duplicates: allowDuplicates.value,
+        remark: batchRemark.value
       })
     })
     const json = await res.json()
@@ -352,6 +358,7 @@ async function add() {
     msg.value = json.message || `成功添加 ${json.data?.length || 0} 条`
     msgType.value = 'success'
     input.value = ''
+    batchRemark.value = ''
     validCount.value = 0
     errors.value = []
     // 刷新列表，回到第一页
@@ -559,6 +566,33 @@ tr:hover { background:#f8f9fa; }
 
 .add-options {
   margin: 12px 0;
+}
+
+.add-remark {
+  margin: 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.add-remark label {
+  font-size: 14px;
+  color: #555;
+  white-space: nowrap;
+}
+
+.add-remark input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  max-width: 400px;
+}
+
+.add-remark input:focus {
+  outline: none;
+  border-color: #007bff;
 }
 
 .checkbox-label {

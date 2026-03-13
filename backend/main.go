@@ -362,16 +362,17 @@ func getSettings(c *gin.Context) {
 }
 
 // 批量添加卡密（按行解析）
-// 请求体：{ text:"卡号----链接\n卡号----链接", allow_duplicates: true }
+// 请求体：{ text:"卡号----链接\n卡号----链接", allow_duplicates: true, remark: "" }
 // 处理：逐行解析出 card_no、card_link；为每条生成本系统 `query_url`；
 //
-//	以 INSERT 写入，allow_duplicates 控制是否允许重复卡号
+//	以 INSERT 写入，allow_duplicates 控制是否允许重复卡号，remark 为批量备注
 //
 // 返回：成功写入的卡密简要信息（含 query_url）
 func addCard(c *gin.Context) {
 	var req struct {
 		Text            string `json:"text" binding:"required"`
 		AllowDuplicates bool   `json:"allow_duplicates"`
+		Remark          string `json:"remark"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, Response{Code: -1, Message: "请求格式错误"})
@@ -430,8 +431,8 @@ func addCard(c *gin.Context) {
 		queryURL := fmt.Sprintf("%s/query?card=%s", baseURL, url.QueryEscape(queryToken))
 		
 		_, err := db.Exec(
-			"INSERT INTO cards (card_no, card_link, phone, query_url, query_token, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))",
-			card.CardNo, card.CardLink, card.Phone, queryURL, queryToken,
+			"INSERT INTO cards (card_no, card_link, phone, remark, query_url, query_token, created_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))",
+			card.CardNo, card.CardLink, card.Phone, req.Remark, queryURL, queryToken,
 		)
 		if err != nil {
 			log.Printf("添加失败 %s: %v", card.CardNo, err)
