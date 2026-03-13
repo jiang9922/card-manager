@@ -303,11 +303,11 @@ function exportSelected() {
   // 根据选中 id 从 cards 查找对应数据
   const selectedCards = cards.value.filter((c: any) => selected.value.includes(c.id))
   
-  // 生成导出文本：卡号----查询页链接
+  // 生成导出文本：卡号 空格 查询链接（纯链接格式）
   const lines = selectedCards.map((c: any) => {
     // 优先使用后端返回的 query_url，其次用 query_token 构建
     const queryUrl = c.query_url || `${window.location.origin}/query?card=${encodeURIComponent(c.query_token || c.card_no)}`
-    return `${c.card_no} [验证码查询](${queryUrl})`
+    return `${c.card_no} ${queryUrl}`
   })
   
   const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
