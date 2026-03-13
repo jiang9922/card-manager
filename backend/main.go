@@ -406,10 +406,15 @@ func addCard(c *gin.Context) {
 		for _, card := range cards {
 			var count int
 			err := db.QueryRow("SELECT COUNT(*) FROM cards WHERE card_no = ?", card.CardNo).Scan(&count)
-			if err == nil && count > 0 {
+			if err != nil {
+				log.Printf("检查重复卡号失败 %s: %v", card.CardNo, err)
+				// 查询失败时，假设卡号已存在（安全起见）
+				existingCards[card.CardNo] = true
+			} else if count > 0 {
 				existingCards[card.CardNo] = true
 			}
 		}
+		log.Printf("不允许重复添加，发现 %d 个重复卡号", len(existingCards))
 	}
 	
 	for _, card := range cards {
@@ -432,12 +437,21 @@ func addCard(c *gin.Context) {
 			log.Printf("添加失败 %s: %v", card.CardNo, err)
 			continue
 		}
+		log.Printf("成功添加卡号: %s", card.CardNo)
 		added = append(added, Card{CardNo: card.CardNo, QueryURL: &queryURL})
 	}
 
+	log.Printf("批量添加完成: 请求添加 %d 条，成功添加 %d 条，allow_duplicates=%v", len(cards), len(added), req.AllowDuplicates)
+
+	skipped := len(cards) - len(added)
+	message := fmt.Sprintf("成功添加 %d 条", len(added))
+	if skipped > 0 {
+		message = fmt.Sprintf("成功添加 %d 条，跳过 %d 条重复", len(added), skipped)
+	}
+	
 	c.JSON(200, Response{
 		Code:    0,
-		Message: fmt.Sprintf("成功添加 %d 条", len(added)),
+		Message: message,
 		Data:    added,
 	})
 }
