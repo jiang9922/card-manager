@@ -58,7 +58,7 @@
           <td><input type="checkbox" :value="c.id" v-model="selected" /></td>
           <td>
             {{ c.card_no }}
-            <a :href="`/query?card=${c.card_no}`" class="query-link">查询</a>
+            <a :href="c.query_url || `/query?card=${c.card_no}`" class="query-link">查询</a>
           </td>
           <td>
             <a :href="c.card_link" target="_blank" class="link" :title="c.card_link">
