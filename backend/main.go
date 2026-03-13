@@ -47,6 +47,7 @@ func init() {
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		card_no TEXT NOT NULL,
 		card_link TEXT NOT NULL,
+		phone TEXT,
 		query_url TEXT,
 		query_token TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -73,6 +74,7 @@ type Card struct {
 	ID              int     `json:"id"`
 	CardNo          string  `json:"card_no"`
 	CardLink        string  `json:"card_link"`
+	Phone           *string `json:"phone"`
 	QueryURL        *string `json:"query_url"`
 	CreatedAt       string  `json:"created_at"`
 	CardCode        *string `json:"card_code"`
@@ -85,6 +87,7 @@ type Card struct {
 type AddCardRequest struct {
 	CardNo   string `json:"card_no" binding:"required"`
 	CardLink string `json:"card_link" binding:"required,url"`
+	Phone    string `json:"phone"`
 }
 
 type LoginRequest struct {
@@ -163,12 +166,19 @@ func getAllCards(c *gin.Context) {
 	}
 
 	// 获取筛选参数
-	dateFilter := c.Query("date")     // 日期筛选 (YYYY-MM-DD)
-	statusFilter := c.Query("status") // 状态筛选 (all/checked/unchecked)
+	dateFilter := c.Query("date")       // 日期筛选 (YYYY-MM-DD)
+	statusFilter := c.Query("status")   // 状态筛选 (all/checked/unchecked)
+	phoneFilter := c.Query("phone")     // 手机号筛选
 
 	// 构建查询条件
 	whereClause := ""
 	args := []interface{}{}
+
+	// 手机号筛选
+	if phoneFilter != "" {
+		whereClause += " AND phone = ?"
+		args = append(args, phoneFilter)
+	}
 
 	// 日期筛选
 	if dateFilter != "" {
@@ -203,7 +213,7 @@ func getAllCards(c *gin.Context) {
 	}
 
 	// 查询当前页数据
-	query := "SELECT id, card_no, card_link, query_url, created_at, card_code, card_expired_date, card_note, card_check FROM cards " +
+	query := "SELECT id, card_no, card_link, phone, query_url, created_at, card_code, card_expired_date, card_note, card_check FROM cards " +
 		whereClause + " ORDER BY created_at DESC LIMIT ? OFFSET ?"
 	dataArgs := append(args, pageSize, offset)
 	rows, err := db.Query(query, dataArgs...)
@@ -216,14 +226,17 @@ func getAllCards(c *gin.Context) {
 	cards := []Card{}
 	for rows.Next() {
 		var card Card
-		var queryURL, code, expired, note sql.NullString
-		err := rows.Scan(&card.ID, &card.CardNo, &card.CardLink, &queryURL, &card.CreatedAt, &code, &expired, &note, &card.CardCheck)
+		var queryURL, code, expired, note, phone sql.NullString
+		err := rows.Scan(&card.ID, &card.CardNo, &card.CardLink, &phone, &queryURL, &card.CreatedAt, &code, &expired, &note, &card.CardCheck)
 		if err != nil {
 			log.Printf("扫描失败: %v", err)
 			continue
 		}
 		if queryURL.Valid {
 			card.QueryURL = &queryURL.String
+		}
+		if phone.Valid {
+			card.Phone = &phone.String
 		}
 		if code.Valid {
 			card.CardCode = &code.String
@@ -297,8 +310,8 @@ func addCard(c *gin.Context) {
 		queryURL := fmt.Sprintf("%s/query?card=%s", baseURL, url.QueryEscape(queryToken))
 		
 		_, err := db.Exec(
-			"INSERT INTO cards (card_no, card_link, query_url, query_token, created_at) VALUES (?, ?, ?, ?, datetime('now'))",
-			card.CardNo, card.CardLink, queryURL, queryToken,
+			"INSERT INTO cards (card_no, card_link, phone, query_url, query_token, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))",
+			card.CardNo, card.CardLink, card.Phone, queryURL, queryToken,
 		)
 		if err != nil {
 			log.Printf("添加失败 %s: %v", card.CardNo, err)
