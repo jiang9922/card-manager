@@ -48,6 +48,7 @@ func init() {
 		card_no TEXT NOT NULL UNIQUE,
 		card_link TEXT NOT NULL,
 		query_url TEXT,
+		query_token TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		card_code TEXT,
 		card_expired_date TEXT,
@@ -292,15 +293,15 @@ func addCard(c *gin.Context) {
 	for _, card := range cards {
 		// 生成随机字母后缀，格式：卡号_随机6位字母
 		randomSuffix := generateRandomString(6)
-		queryParam := fmt.Sprintf("%s_%s", card.CardNo, randomSuffix)
-		queryURL := fmt.Sprintf("%s/query?card=%s", baseURL, url.QueryEscape(queryParam))
+		queryToken := fmt.Sprintf("%s_%s", card.CardNo, randomSuffix)
+		queryURL := fmt.Sprintf("%s/query?card=%s", baseURL, url.QueryEscape(queryToken))
 		
 		// 先删除已存在的记录，确保生成新的查询链接
 		db.Exec("DELETE FROM cards WHERE card_no = ?", card.CardNo)
 		
 		_, err := db.Exec(
-			"INSERT INTO cards (card_no, card_link, query_url, created_at) VALUES (?, ?, ?, datetime('now'))",
-			card.CardNo, card.CardLink, queryURL,
+			"INSERT INTO cards (card_no, card_link, query_url, query_token, created_at) VALUES (?, ?, ?, ?, datetime('now'))",
+			card.CardNo, card.CardLink, queryURL, queryToken,
 		)
 		if err != nil {
 			log.Printf("添加失败 %s: %v", card.CardNo, err)
@@ -423,15 +424,19 @@ func queryCard(c *gin.Context) {
 		cardLink = linkPlain
 	}
 	if cardLink == "" {
-		// 提取纯卡号（去掉随机字母后缀）
-		pureCardNo := cardNo
-		if idx := strings.Index(cardNo, "_"); idx > 0 {
-			pureCardNo = cardNo[:idx]
-		}
-		err := db.QueryRow("SELECT card_link FROM cards WHERE card_no = ?", pureCardNo).Scan(&cardLink)
+		// 使用 query_token 字段匹配查询参数
+		err := db.QueryRow("SELECT card_link FROM cards WHERE query_token = ?", cardNo).Scan(&cardLink)
 		if err != nil {
-			c.JSON(404, Response{Code: -1, Message: "卡号不存在"})
-			return
+			// 兼容旧数据，尝试用纯卡号查询
+			pureCardNo := cardNo
+			if idx := strings.Index(cardNo, "_"); idx > 0 {
+				pureCardNo = cardNo[:idx]
+			}
+			err = db.QueryRow("SELECT card_link FROM cards WHERE card_no = ?", pureCardNo).Scan(&cardLink)
+			if err != nil {
+				c.JSON(404, Response{Code: -1, Message: "卡号不存在"})
+				return
+			}
 		}
 	}
 
