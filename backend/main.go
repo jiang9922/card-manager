@@ -537,9 +537,21 @@ func main() {
 		frontendDist = "/root/frontend/dist" // Docker 路径
 	}
 
-	r.StaticFile("/", frontendDist+"/index.html")
+	// 静态资源
 	r.Static("/assets", frontendDist+"/assets")
 	r.StaticFile("/favicon.ico", frontendDist+"/favicon.ico")
+
+	// SPA 路由处理：所有非 API 请求返回 index.html
+	r.NoRoute(func(c *gin.Context) {
+		path := c.Request.URL.Path
+		// API 请求直接返回 404
+		if strings.HasPrefix(path, "/api/") {
+			c.JSON(404, gin.H{"code": -1, "message": "API not found"})
+			return
+		}
+		// 其他请求返回 index.html，让 Vue Router 处理
+		c.File(frontendDist + "/index.html")
+	})
 
 	log.Printf("服务启动: http://0.0.0.0:%s", port)
 	r.Run("0.0.0.0:" + port)
