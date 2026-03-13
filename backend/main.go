@@ -423,7 +423,12 @@ func queryCard(c *gin.Context) {
 		cardLink = linkPlain
 	}
 	if cardLink == "" {
-		err := db.QueryRow("SELECT card_link FROM cards WHERE card_no = ?", cardNo).Scan(&cardLink)
+		// 提取纯卡号（去掉随机字母后缀）
+		pureCardNo := cardNo
+		if idx := strings.Index(cardNo, "_"); idx > 0 {
+			pureCardNo = cardNo[:idx]
+		}
+		err := db.QueryRow("SELECT card_link FROM cards WHERE card_no = ?", pureCardNo).Scan(&cardLink)
 		if err != nil {
 			c.JSON(404, Response{Code: -1, Message: "卡号不存在"})
 			return
