@@ -395,7 +395,8 @@ func batchExport(c *gin.Context) {
 			continue
 		}
 		if no.Valid && url.Valid {
-			lines = append(lines, fmt.Sprintf("%s %s", no.String, url.String))
+			// Markdown 格式：卡号 [验证码查询](查询链接)
+			lines = append(lines, fmt.Sprintf("%s [验证码查询](%s)", no.String, url.String))
 		}
 	}
 
