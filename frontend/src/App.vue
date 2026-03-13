@@ -3,6 +3,7 @@
   <div class="app">
 <nav class="nav">
   <router-link to="/query" class="nav-link">查询验证码</router-link>
+  <router-link v-if="!authed" to="/login" class="nav-link">后台登录</router-link>
   <router-link v-if="authed && !isQueryPage" to="/admin/manage" class="nav-link">管理后台</router-link>
 </nav>
     <router-view class="view" />
