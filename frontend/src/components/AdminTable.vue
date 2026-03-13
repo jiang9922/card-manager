@@ -165,6 +165,9 @@ async function load(page: number = 1) {
     let url = `/api/cards?page=${page}&page_size=${pageSize.value}`
     
     // 添加筛选参数
+    if (filters.value.cardNo) {
+      url += `&card_no=${encodeURIComponent(filters.value.cardNo)}`
+    }
     if (filters.value.date) {
       url += `&date=${filters.value.date}`
     }
@@ -178,8 +181,6 @@ async function load(page: number = 1) {
     if (json.code === 0 && json.data) {
       cards.value = Array.isArray(json.data.cards) ? json.data.cards : []
       displayedCards.value = cards.value
-      // 应用当前筛选
-      applyFilters()
       pagination.value = json.data.pagination || {
         page: 1,
         page_size: pageSize.value,
@@ -209,31 +210,8 @@ function changePageSize() {
 }
 
 function applyFilters() {
-  // 前端筛选：根据卡号搜索、日期、状态筛选
-  let result = cards.value
-  
-  // 卡号搜索
-  if (filters.value.cardNo.trim()) {
-    const keyword = filters.value.cardNo.toLowerCase()
-    result = result.filter(c => c.card_no.toLowerCase().includes(keyword))
-  }
-  
-  // 状态筛选
-  if (filters.value.status === 'checked') {
-    result = result.filter(c => c.card_check)
-  } else if (filters.value.status === 'unchecked') {
-    result = result.filter(c => !c.card_check)
-  }
-  
-  // 日期筛选
-  if (filters.value.date) {
-    result = result.filter(c => {
-      const cardDate = c.created_at.split('T')[0]
-      return cardDate === filters.value.date
-    })
-  }
-  
-  displayedCards.value = result
+  // 后端已筛选，只需刷新数据
+  load(1)
 }
 
 function clearFilters() {
@@ -241,8 +219,8 @@ function clearFilters() {
   filters.value.cardNo = ''
   filters.value.date = ''
   filters.value.status = ''
-  // 恢复显示所有数据
-  displayedCards.value = cards.value
+  // 重新加载数据
+  load(1)
 }
 
 function goToPage(page: number) {

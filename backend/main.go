@@ -169,10 +169,17 @@ func getAllCards(c *gin.Context) {
 	dateFilter := c.Query("date")       // 日期筛选 (YYYY-MM-DD)
 	statusFilter := c.Query("status")   // 状态筛选 (all/checked/unchecked)
 	phoneFilter := c.Query("phone")     // 手机号筛选
+	cardNoFilter := c.Query("card_no")  // 卡号搜索
 
 	// 构建查询条件
 	whereClause := ""
 	args := []interface{}{}
+
+	// 卡号搜索（支持模糊匹配）
+	if cardNoFilter != "" {
+		whereClause += " AND card_no LIKE ?"
+		args = append(args, "%"+cardNoFilter+"%")
+	}
 
 	// 手机号筛选
 	if phoneFilter != "" {
