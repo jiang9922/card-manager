@@ -502,9 +502,14 @@ func generateRandomString(length int) string {
 
 // 构造当前请求的基础地址（协议+主机）
 func getBaseURL(c *gin.Context) string {
-	scheme := "http"
-	if c.Request.TLS != nil {
-		scheme = "https"
+	// 优先使用环境变量设置的域名
+	if host := os.Getenv("RAILWAY_PUBLIC_DOMAIN"); host != "" {
+		return "https://" + host
+	}
+	// 回退到请求头中的 Host
+	scheme := "https"
+	if c.Request.TLS == nil {
+		scheme = "http"
 	}
 	return fmt.Sprintf("%s://%s", scheme, c.Request.Host)
 }
