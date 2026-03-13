@@ -24,6 +24,10 @@
     <div class="filter-section">
       <div class="filter-row">
         <div class="filter-item">
+          <label>卡号搜索：</label>
+          <input type="text" v-model="filters.cardNo" @input="applyFilters" placeholder="输入卡号搜索" />
+        </div>
+        <div class="filter-item">
           <label>日期筛选：</label>
           <input type="date" v-model="filters.date" @change="applyFilters" />
         </div>
@@ -143,6 +147,7 @@ const validCount = ref(0)
 
 // 筛选条件
 const filters = ref({
+  cardNo: '',
   date: '',
   status: ''
 })
@@ -171,6 +176,8 @@ async function load(page: number = 1) {
     if (json.code === 0 && json.data) {
       cards.value = Array.isArray(json.data.cards) ? json.data.cards : []
       displayedCards.value = cards.value
+      // 应用当前筛选
+      applyFilters()
       pagination.value = json.data.pagination || {
         page: 1,
         page_size: pageSize.value,
@@ -200,18 +207,40 @@ function changePageSize() {
 }
 
 function applyFilters() {
-  // 改变筛选后回到第一页并重新拉取数据
-  // 应用筛选条件，回到第一页
-  load(1)
+  // 前端筛选：根据卡号搜索、日期、状态筛选
+  let result = cards.value
+  
+  // 卡号搜索
+  if (filters.value.cardNo.trim()) {
+    const keyword = filters.value.cardNo.toLowerCase()
+    result = result.filter(c => c.card_no.toLowerCase().includes(keyword))
+  }
+  
+  // 状态筛选
+  if (filters.value.status === 'checked') {
+    result = result.filter(c => c.card_check)
+  } else if (filters.value.status === 'unchecked') {
+    result = result.filter(c => !c.card_check)
+  }
+  
+  // 日期筛选
+  if (filters.value.date) {
+    result = result.filter(c => {
+      const cardDate = c.created_at.split('T')[0]
+      return cardDate === filters.value.date
+    })
+  }
+  
+  displayedCards.value = result
 }
 
 function clearFilters() {
-  // 清除筛选并刷新列表
   // 清除筛选条件
+  filters.value.cardNo = ''
   filters.value.date = ''
   filters.value.status = ''
-  // 重新加载数据
-  load(1)
+  // 恢复显示所有数据
+  displayedCards.value = cards.value
 }
 
 function goToPage(page: number) {
