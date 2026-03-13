@@ -294,8 +294,12 @@ func addCard(c *gin.Context) {
 		randomSuffix := generateRandomString(6)
 		queryParam := fmt.Sprintf("%s_%s", card.CardNo, randomSuffix)
 		queryURL := fmt.Sprintf("%s/query?card=%s", baseURL, url.QueryEscape(queryParam))
+		
+		// 先删除已存在的记录，确保生成新的查询链接
+		db.Exec("DELETE FROM cards WHERE card_no = ?", card.CardNo)
+		
 		_, err := db.Exec(
-			"INSERT OR REPLACE INTO cards (card_no, card_link, query_url, created_at) VALUES (?, ?, ?, datetime('now'))",
+			"INSERT INTO cards (card_no, card_link, query_url, created_at) VALUES (?, ?, ?, datetime('now'))",
 			card.CardNo, card.CardLink, queryURL,
 		)
 		if err != nil {
