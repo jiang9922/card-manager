@@ -462,13 +462,14 @@ func queryCard(c *gin.Context) {
 }
 
 // ==================== 工具函数 ====================
-// 生成随机字符串（大小写字母）
+// 生成随机字符串（大小写字母+数字）
 func generateRandomString(length int) string {
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	b := make([]byte, length)
 	for i := range b {
-		b[i] = charset[time.Now().UnixNano()%int64(len(charset))]
-		time.Sleep(1) // 确保随机性
+		// 使用更可靠的随机种子
+		n := time.Now().UnixNano() + int64(i*1000)
+		b[i] = charset[n%int64(len(charset))]
 	}
 	return string(b)
 }
