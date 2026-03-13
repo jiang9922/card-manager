@@ -273,6 +273,53 @@ func getAllCards(c *gin.Context) {
 	})
 }
 
+// 获取最新验证码（实时面板用）
+// 查询参数：
+//   - limit：返回条数，默认 20
+// 返回：最近获取的验证码列表
+func getLiveCodes(c *gin.Context) {
+	limitStr := c.Query("limit")
+	limit := 20
+	if limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
+			limit = l
+		}
+	}
+
+	query := `SELECT id, card_no, card_code, card_expired_date, created_at 
+		FROM cards 
+		WHERE card_check = 1 AND card_code IS NOT NULL AND card_code != ''
+		ORDER BY card_expired_date DESC, created_at DESC 
+		LIMIT ?`
+	
+	rows, err := db.Query(query, limit)
+	if err != nil {
+		c.JSON(500, Response{Code: -1, Message: "查询失败"})
+		return
+	}
+	defer rows.Close()
+
+	cards := []Card{}
+	for rows.Next() {
+		var card Card
+		var code, expired, created string
+		err := rows.Scan(&card.ID, &card.CardNo, &code, &expired, &created)
+		if err != nil {
+			continue
+		}
+		card.CardCode = &code
+		card.CardExpiredDate = &expired
+		card.CreatedAt = created
+		cards = append(cards, card)
+	}
+
+	c.JSON(200, Response{
+		Code:    0,
+		Message: "success",
+		Data:    cards,
+	})
+}
+
 // 批量添加卡密（按行解析）
 // 请求体：{ text:"卡号----链接\n卡号----链接" }
 // 处理：逐行解析出 card_no、card_link；为每条生成本系统 `query_url`；
@@ -578,6 +625,7 @@ func main() {
 		api.POST("/admin/login", adminLogin)
 		api.GET("/admin/verify", adminVerify)
 		api.GET("/cards", getAllCards)
+		api.GET("/cards/live-codes", getLiveCodes)
 		api.POST("/cards", addCard)
 		api.DELETE("/admin/batch-delete", batchDelete)
 		api.POST("/admin/export", batchExport)
