@@ -274,9 +274,7 @@ func getAllCards(c *gin.Context) {
 }
 
 // 获取最新验证码（实时面板用）
-// 查询参数：
-//   - limit：返回条数，默认 20
-// 返回：最近获取的验证码列表
+// 只返回近2分钟内获取的验证码
 func getLiveCodes(c *gin.Context) {
 	limitStr := c.Query("limit")
 	limit := 20
@@ -286,9 +284,13 @@ func getLiveCodes(c *gin.Context) {
 		}
 	}
 
+	// 只查询近2分钟内更新且有验证码的数据
 	query := `SELECT id, card_no, card_code, card_expired_date, created_at 
 		FROM cards 
-		WHERE card_check = 1 AND card_code IS NOT NULL AND card_code != ''
+		WHERE card_check = 1 
+		  AND card_code IS NOT NULL 
+		  AND card_code != ''
+		  AND datetime(created_at) >= datetime('now', '-2 minutes')
 		ORDER BY card_expired_date DESC, created_at DESC 
 		LIMIT ?`
 	
