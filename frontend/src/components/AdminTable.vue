@@ -10,12 +10,14 @@
       <!-- 分页大小设置 -->
       <div class="page-size-control">
         <label>每页显示：</label>
-        <select v-model="pageSize" @change="changePageSize">
-          <option value="10">10</option>
-          <option value="20">20</option>
-          <option value="50">50</option>
-          <option value="100">100</option>
-        </select>
+        <input 
+          type="number" 
+          v-model.number="pageSize" 
+          @change="changePageSize" 
+          min="1" 
+          max="1000"
+          class="page-size-input"
+        />
         <span>条</span>
       </div>
     </div>
@@ -488,11 +490,16 @@ function formatTime(s: string) {
   color: #333;
 }
 
-.page-size-control select {
+.page-size-control select, .page-size-control input {
   padding: 6px 10px;
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 14px;
+}
+
+.page-size-control input {
+  width: 60px;
+  text-align: center;
 }
 
 .page-size-control span {
