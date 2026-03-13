@@ -107,10 +107,7 @@
           <input type="checkbox" v-model="allowDuplicates" />
           <span>允许重复添加（同一卡号可生成多个查询链接）</span>
         </label>
-      </div>
-      <div class="add-remark">
-        <label>批量备注（可选）：</label>
-        <input type="text" v-model="batchRemark" placeholder="输入备注，将同步到所有本次添加的卡密" />
+        <input type="text" v-model="batchRemark" placeholder="批量备注（可选）" class="inline-remark-input" />
       </div>
       <div class="validate">
         <span class="ok">有效 {{ validCount }} 条</span>
@@ -566,31 +563,21 @@ tr:hover { background:#f8f9fa; }
 
 .add-options {
   margin: 12px 0;
-}
-
-.add-remark {
-  margin: 12px 0;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 20px;
+  flex-wrap: wrap;
 }
 
-.add-remark label {
-  font-size: 14px;
-  color: #555;
-  white-space: nowrap;
-}
-
-.add-remark input {
-  flex: 1;
-  padding: 8px 12px;
+.inline-remark-input {
+  padding: 6px 10px;
   border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 14px;
-  max-width: 400px;
+  border-radius: 4px;
+  font-size: 13px;
+  width: 180px;
 }
 
-.add-remark input:focus {
+.inline-remark-input:focus {
   outline: none;
   border-color: #007bff;
 }
