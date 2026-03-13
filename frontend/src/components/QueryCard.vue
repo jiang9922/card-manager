@@ -2,23 +2,6 @@
   <div class="card">
     <h3>验证码查询</h3>
     <div class="field">
-      <label>手机号</label>
-      <input v-model="phone" @keyup.enter="loadCards" placeholder="请输入手机号查询" />
-    </div>
-    <div class="field" v-if="cardList.length > 0">
-      <label>选择卡号</label>
-      <select v-model="selectedCard" @change="query">
-        <option value="">请选择卡号</option>
-        <option v-for="c in cardList" :key="c.id" :value="c.query_url?.split('?card=')[1] || c.card_no">
-          {{ c.card_no }}
-        </option>
-      </select>
-    </div>
-    <div class="field" v-else-if="phone && !loading">
-      <label>卡号</label>
-      <input v-model="cardNo" @keyup.enter="query" placeholder="请输入卡号直接查询" />
-    </div>
-    <div class="field" v-else>
       <label>卡号</label>
       <input v-model="cardNo" @keyup.enter="query" placeholder="请输入卡号" />
     </div>
@@ -49,14 +32,11 @@
 // - 展示验证码、获取时间与过期时间
 // - 支持从 URL（`card_enc`/`card`/`card_no`）预填卡号，便于分享或从后台跳转
 // - 提供复制验证码到剪贴板
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useToast } from '../composables/useToast'
 
 const toast = useToast()
 // 展示数据与状态
-const phone = ref('')
-const cardList = ref<any[]>([])
-const selectedCard = ref('')
 const cardNo = ref('')
 const code = ref('')
 const codeTime = ref('')
@@ -67,51 +47,27 @@ const loading = ref(false)
 const copyText = ref('复制')
 
 onMounted(() => {
-  // 从 URL 参数恢复
+  // 从 URL 参数恢复卡号
   const params = new URLSearchParams(window.location.search)
   const enc = params.get('card_enc')
   if (enc) {
     try { 
       const decoded = atob(enc)
+      // 提取纯卡号（去掉随机字母后缀）
       cardNo.value = decoded.split('_')[0] || decoded
     } catch {}
   } else {
     const plain = params.get('card') || params.get('card_no')
     if (plain) {
+      // 提取纯卡号（去掉随机字母后缀）
       cardNo.value = plain.split('_')[0] || plain
     }
   }
-  // 监听手机号变化，自动加载卡密列表
-  watch(phone, loadCards)
 })
 
-// 根据手机号加载卡密列表
-async function loadCards() {
-  if (!phone.value.trim()) {
-    cardList.value = []
-    return
-  }
-  loading.value = true
-  try {
-    const res = await fetch(`/api/cards?phone=${encodeURIComponent(phone.value)}&page_size=100`)
-    const json = await res.json()
-    if (json.code === 0 && json.data && json.data.cards) {
-      cardList.value = json.data.cards
-    } else {
-      cardList.value = []
-    }
-  } catch {
-    cardList.value = []
-  } finally {
-    loading.value = false
-  }
-}
-
 async function query() {
-  // 优先使用选择的卡号
-  const queryCardNo = selectedCard.value || cardNo.value
-  if (!queryCardNo.trim()) return toast('请输入卡号', 'error')
-  
+  // 基本校验与 UI 状态复位
+  if (!cardNo.value.trim()) return toast('请输入卡号', 'error')
   loading.value = true
   error.value = ''
   result.value = false
@@ -119,7 +75,8 @@ async function query() {
   codeTime.value = ''
 
   try {
-    const url = `/api/cards/query?card=${encodeURIComponent(queryCardNo)}`
+    // 查询页调用后端接口，后端根据卡号从数据库中查找链接
+    const url = `/api/cards/query?card=${encodeURIComponent(cardNo.value)}`
     const res = await fetch(url)
     const json = await res.json()
     if (json.code !== 0 || !json.data) {
