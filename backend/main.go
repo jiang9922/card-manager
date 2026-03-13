@@ -288,7 +288,10 @@ func addCard(c *gin.Context) {
 	baseURL := getBaseURL(c)
 	added := []Card{}
 	for _, card := range cards {
-		queryURL := fmt.Sprintf("%s/query?card=%s", baseURL, url.QueryEscape(card.CardNo))
+		// 生成随机字母后缀，格式：卡号_随机6位字母
+		randomSuffix := generateRandomString(6)
+		queryParam := fmt.Sprintf("%s_%s", card.CardNo, randomSuffix)
+		queryURL := fmt.Sprintf("%s/query?card=%s", baseURL, url.QueryEscape(queryParam))
 		_, err := db.Exec(
 			"INSERT OR REPLACE INTO cards (card_no, card_link, query_url, created_at) VALUES (?, ?, ?, datetime('now'))",
 			card.CardNo, card.CardLink, queryURL,
@@ -459,6 +462,17 @@ func queryCard(c *gin.Context) {
 }
 
 // ==================== 工具函数 ====================
+// 生成随机字符串（大小写字母）
+func generateRandomString(length int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[time.Now().UnixNano()%int64(len(charset))]
+		time.Sleep(1) // 确保随机性
+	}
+	return string(b)
+}
+
 // 构造当前请求的基础地址（协议+主机）
 func getBaseURL(c *gin.Context) string {
 	scheme := "http"
