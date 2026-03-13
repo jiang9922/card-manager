@@ -48,6 +48,7 @@ func init() {
 		card_no TEXT NOT NULL,
 		card_link TEXT NOT NULL,
 		phone TEXT,
+		remark TEXT,
 		query_url TEXT,
 		query_token TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -75,6 +76,7 @@ type Card struct {
 	CardNo          string  `json:"card_no"`
 	CardLink        string  `json:"card_link"`
 	Phone           *string `json:"phone"`
+	Remark          *string `json:"remark"`
 	QueryURL        *string `json:"query_url"`
 	CreatedAt       string  `json:"created_at"`
 	CardCode        *string `json:"card_code"`
@@ -317,6 +319,29 @@ func getLiveCodes(c *gin.Context) {
 		Code:    0,
 		Message: "success",
 		Data:    cards,
+	})
+}
+
+// 更新备注
+func updateRemark(c *gin.Context) {
+	id := c.Param("id")
+	var req struct {
+		Remark string `json:"remark"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, Response{Code: -1, Message: "请求格式错误"})
+		return
+	}
+
+	_, err := db.Exec("UPDATE cards SET remark = ? WHERE id = ?", req.Remark, id)
+	if err != nil {
+		c.JSON(500, Response{Code: -1, Message: "更新备注失败"})
+		return
+	}
+
+	c.JSON(200, Response{
+		Code:    0,
+		Message: "备注已保存",
 	})
 }
 
@@ -629,6 +654,7 @@ func main() {
 		api.GET("/admin/settings", getSettings)
 		api.GET("/cards", getAllCards)
 		api.POST("/cards", addCard)
+		api.PUT("/cards/:id/remark", updateRemark)
 		api.DELETE("/admin/batch-delete", batchDelete)
 		api.POST("/admin/export", batchExport)
 		api.GET("/cards/query", queryCard)

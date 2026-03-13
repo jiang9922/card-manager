@@ -56,12 +56,16 @@
               全选
             </label>
           </th>
+          <th>序号</th>
+          <th>备注</th>
           <th>卡号</th><th>链接</th><th>状态</th><th>添加时间</th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="c in displayedCards" :key="c.id">
+        <tr v-for="(c, index) in displayedCards" :key="c.id">
           <td><input type="checkbox" :value="c.id" v-model="selected" /></td>
+          <td>{{ (pagination.page - 1) * pagination.page_size + index + 1 }}</td>
+          <td><input type="text" v-model="c.remark" @blur="saveRemark(c)" placeholder="添加备注" class="remark-input" /></td>
           <td>
             {{ c.card_no }}
             <a :href="c.query_url || `/query?card=${c.card_no}`" class="query-link">查询</a>
@@ -399,6 +403,23 @@ function toggleSelectAll() {
 function encUrl(u: string) {
   try { return btoa(u) } catch { return '' }
 }
+
+// 保存备注
+async function saveRemark(card: any) {
+  try {
+    const res = await fetch('/api/cards/' + card.id + '/remark', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ remark: card.remark })
+    })
+    const json = await res.json()
+    if (json.code !== 0) {
+      toast('保存备注失败', 'error')
+    }
+  } catch {
+    toast('保存备注失败', 'error')
+  }
+}
 </script>
 
 <style scoped>
@@ -501,6 +522,21 @@ tr:hover { background:#f8f9fa; }
 .time-cell { display:flex; flex-direction:column; gap:2px; font-size:13px; }
 .time-cell .date { color:#333; }
 .time-cell .time { color:#999; font-size:12px; }
+
+/* 备注输入框 */
+.remark-input {
+  width: 120px;
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  background: transparent;
+}
+.remark-input:focus {
+  outline: none;
+  border-color: #007bff;
+  background: #fff;
+}
 
 /* 分页 */
 .pagination { display:flex; justify-content:center; align-items:center; gap:10px; margin-top:20px; }
