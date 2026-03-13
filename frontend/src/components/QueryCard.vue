@@ -52,10 +52,17 @@ onMounted(() => {
   // 兼容加密的 card_enc 或明文 card/card_no
   const enc = params.get('card_enc')
   if (enc) {
-    try { cardNo.value = atob(enc) } catch {}
+    try { 
+      const decoded = atob(enc)
+      // 提取纯卡号（去掉随机字母后缀）
+      cardNo.value = decoded.split('_')[0] || decoded
+    } catch {}
   } else {
     const plain = params.get('card') || params.get('card_no')
-    if (plain) cardNo.value = plain
+    if (plain) {
+      // 提取纯卡号（去掉随机字母后缀）
+      cardNo.value = plain.split('_')[0] || plain
+    }
   }
 })
 
