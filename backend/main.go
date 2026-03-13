@@ -45,7 +45,7 @@ func init() {
 	createTableSQL := `
 	CREATE TABLE IF NOT EXISTS cards (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		card_no TEXT NOT NULL UNIQUE,
+		card_no TEXT NOT NULL,
 		card_link TEXT NOT NULL,
 		query_url TEXT,
 		query_token TEXT,
@@ -295,9 +295,6 @@ func addCard(c *gin.Context) {
 		randomSuffix := generateRandomString(6)
 		queryToken := fmt.Sprintf("%s_%s", card.CardNo, randomSuffix)
 		queryURL := fmt.Sprintf("%s/query?card=%s", baseURL, url.QueryEscape(queryToken))
-		
-		// 先删除已存在的记录，确保生成新的查询链接
-		db.Exec("DELETE FROM cards WHERE card_no = ?", card.CardNo)
 		
 		_, err := db.Exec(
 			"INSERT INTO cards (card_no, card_link, query_url, query_token, created_at) VALUES (?, ?, ?, ?, datetime('now'))",
