@@ -27,15 +27,15 @@
       <div class="filter-row">
         <div class="filter-item">
           <label>卡号搜索：</label>
-          <input type="text" v-model="filters.cardNo" @input="applyFilters" placeholder="输入卡号搜索" />
+          <input type="text" v-model="filters.cardNo" @input="onCardNoSearch" placeholder="输入卡号搜索" />
         </div>
         <div class="filter-item">
           <label>日期筛选：</label>
-          <input type="date" v-model="filters.date" @change="applyFilters" />
+          <input type="date" v-model="filters.date" @change="load(1)" />
         </div>
         <div class="filter-item">
           <label>状态筛选：</label>
-          <select v-model="filters.status" @change="applyFilters">
+          <select v-model="filters.status" @change="load(1)">
             <option value="">全部</option>
             <option value="checked">已获取</option>
             <option value="unchecked">未获取</option>
@@ -194,8 +194,7 @@ async function load(page: number = 1) {
     if (json.code === 0 && json.data) {
       cards.value = Array.isArray(json.data.cards) ? json.data.cards : []
       displayedCards.value = cards.value
-      // 应用当前筛选
-      applyFilters()
+      // 后端已返回筛选后的数据，不再进行前端筛选
       pagination.value = json.data.pagination || {
         page: 1,
         page_size: pageSize.value,
@@ -222,6 +221,18 @@ async function load(page: number = 1) {
 function changePageSize() {
   // 改变分页大小后回到第一页并重新拉取数据
   load(1)
+}
+
+// 卡号搜索：触发后端搜索
+let searchTimeout: any = null
+function onCardNoSearch() {
+  // 防抖处理，避免频繁请求
+  if (searchTimeout) {
+    clearTimeout(searchTimeout)
+  }
+  searchTimeout = setTimeout(() => {
+    load(1)
+  }, 300)
 }
 
 function applyFilters() {
@@ -257,8 +268,8 @@ function clearFilters() {
   filters.value.cardNo = ''
   filters.value.date = ''
   filters.value.status = ''
-  // 恢复显示所有数据
-  displayedCards.value = cards.value
+  // 重新加载数据（无筛选条件）
+  load(1)
 }
 
 function goToPage(page: number) {
