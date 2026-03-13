@@ -624,6 +624,8 @@ func main() {
 	{
 		api.POST("/admin/login", adminLogin)
 		api.GET("/admin/verify", adminVerify)
+		api.GET("/admin/auto-query-status", getAutoQueryStatus)
+		api.POST("/admin/trigger-auto-query", triggerAutoQuery)
 		api.GET("/cards", getAllCards)
 		api.GET("/cards/live-codes", getLiveCodes)
 		api.POST("/cards", addCard)
@@ -653,6 +655,9 @@ func main() {
 		// 其他请求返回 index.html，让 Vue Router 处理
 		c.File(frontendDist + "/index.html")
 	})
+
+	// 启动自动查询（如果开启）
+	startAutoQuery()
 
 	log.Printf("服务启动: http://0.0.0.0:%s", port)
 	r.Run("0.0.0.0:" + port)
