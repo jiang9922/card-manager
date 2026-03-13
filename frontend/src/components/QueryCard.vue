@@ -81,6 +81,13 @@ async function query() {
 
   // 如果用户手动输入了卡号，需要构建 query_token
   const tokenToQuery = queryToken.value || cardNo.value
+  
+  console.log('Query debug:', {
+    cardNo: cardNo.value,
+    queryToken: queryToken.value,
+    tokenToQuery: tokenToQuery,
+    url: `/api/cards/query?card=${encodeURIComponent(tokenToQuery)}`
+  })
 
   try {
     // 查询页调用后端接口，使用完整的 query_token 查询

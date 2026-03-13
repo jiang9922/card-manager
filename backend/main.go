@@ -549,6 +549,7 @@ func batchExport(c *gin.Context) {
 //  4. 否则仅保存原始响应到 `card_note` 并标记已查，返回业务失败信息
 func queryCard(c *gin.Context) {
 	cardNo := c.Query("card")
+	log.Printf("Query debug - received card param: %s", cardNo)
 	if cardNo == "" {
 		c.JSON(400, Response{Code: -1, Message: "缺少 card 参数"})
 		return
