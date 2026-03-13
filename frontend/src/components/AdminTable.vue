@@ -411,18 +411,33 @@ function encUrl(u: string) {
   try { return btoa(u) } catch { return '' }
 }
 
-const isAllSelected = computed(() => displayedCards.value.length > 0 && displayedCards.value.every((c: any) => selected.value.includes(c.id)))
+const isAllSelected = computed(() => {
+  // 有筛选时：检查当前显示的是否全选
+  // 无筛选时：检查是否所有数据都选中
+  const targetCards = hasFilter.value ? displayedCards.value : cards.value
+  return targetCards.length > 0 && targetCards.every((c: any) => selected.value.includes(c.id))
+})
+
+// 是否有筛选条件
+const hasFilter = computed(() => {
+  return filters.value.cardNo || filters.value.date || filters.value.status
+})
 
 function toggleSelectAll() {
-  // 全选/取消全选 - 只操作当前显示的卡密
+  // 全选/取消全选
   if (isAllSelected.value) {
-    // 取消全选：移除当前显示的所有卡密
-    const displayedIds = displayedCards.value.map((c: any) => c.id)
-    selected.value = selected.value.filter(id => !displayedIds.includes(id))
+    // 取消全选：清空所有选中
+    selected.value = []
   } else {
-    // 全选：添加当前显示的所有卡密（去重）
-    const displayedIds = displayedCards.value.map((c: any) => c.id)
-    selected.value = [...new Set([...selected.value, ...displayedIds])]
+    // 全选：有筛选时选当前显示的，无筛选时选所有
+    if (hasFilter.value) {
+      // 有筛选：只选当前显示的
+      const displayedIds = displayedCards.value.map((c: any) => c.id)
+      selected.value = [...new Set([...selected.value, ...displayedIds])]
+    } else {
+      // 无筛选：选所有
+      selected.value = cards.value.map((c: any) => c.id)
+    }
   }
 }
 
