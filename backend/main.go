@@ -352,6 +352,15 @@ func updateRemark(c *gin.Context) {
 	})
 }
 
+// 获取系统设置
+func getSettings(c *gin.Context) {
+	c.JSON(200, Response{
+		Code:    0,
+		Message: "success",
+		Data:    map[string]interface{}{},
+	})
+}
+
 // 批量添加卡密（按行解析）
 // 请求体：{ text:"卡号----链接\n卡号----链接", allow_duplicates: true }
 // 处理：逐行解析出 card_no、card_link；为每条生成本系统 `query_url`；
@@ -390,13 +399,31 @@ func addCard(c *gin.Context) {
 
 	baseURL := getBaseURL(c)
 	added := []Card{}
+	
+	// 如果不允许重复，先检查哪些卡号已存在
+	existingCards := make(map[string]bool)
+	if !req.AllowDuplicates {
+		for _, card := range cards {
+			var count int
+			err := db.QueryRow("SELECT COUNT(*) FROM cards WHERE card_no = ?", card.CardNo).Scan(&count)
+			if err == nil && count > 0 {
+				existingCards[card.CardNo] = true
+			}
+		}
+	}
+	
 	for _, card := range cards {
+		// 如果不允许重复且卡号已存在，则跳过
+		if !req.AllowDuplicates && existingCards[card.CardNo] {
+			log.Printf("跳过重复卡号: %s", card.CardNo)
+			continue
+		}
+		
 		// 生成随机字母后缀，格式：卡号_随机6位字母
 		randomSuffix := generateRandomString(6)
 		queryToken := fmt.Sprintf("%s_%s", card.CardNo, randomSuffix)
 		queryURL := fmt.Sprintf("%s/query?card=%s", baseURL, url.QueryEscape(queryToken))
 		
-		if !req.AllowDuplicates && existingCards[card.CardNo] { continue }
 		_, err := db.Exec(
 			"INSERT INTO cards (card_no, card_link, phone, query_url, query_token, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))",
 			card.CardNo, card.CardLink, card.Phone, queryURL, queryToken,
